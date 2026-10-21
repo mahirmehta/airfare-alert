@@ -1,0 +1,9 @@
+[
+  {
+    "type": "return",
+    "from": "SIN",
+    "to": "BOM",
+    "depart": "2026-11-24",
+    "return": "2027-01-09"
+  }
+]
