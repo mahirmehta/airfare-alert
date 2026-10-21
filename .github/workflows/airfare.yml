@@ -9,6 +9,10 @@ on:
         description: "Force a search now (uses 1 SerpAPI credit)"
         type: boolean
         default: false
+      sample:
+        description: "Only send a sample card to Teams (no search credit)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -35,7 +39,12 @@ jobs:
           python-version: "3.11"
       - run: pip install requests
       - name: Check fares
-        run: python airfare_alert.py check ${{ inputs.force && '--force' || '' }}
+        run: |
+          if [ "${{ inputs.sample }}" = "true" ]; then
+            python airfare_alert.py test
+          else
+            python airfare_alert.py check ${{ inputs.force && '--force' || '' }}
+          fi
       - name: Save state
         run: |
           git config user.name "airfare-bot"
