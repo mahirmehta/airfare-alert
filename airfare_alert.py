@@ -27,7 +27,6 @@ SYMBOLS = {"INR": "₹", "SGD": "S$", "USD": "$", "EUR": "€", "GBP": "£"}
 MONTHLY_CAP = int(os.getenv("MONTHLY_SEARCH_CAP", "240"))  # SerpAPI plan: 250/month, keep a buffer
 NIGHT_START, NIGHT_END = 0, 4  # 00:00-04:00 local (Singapore) time: checked hourly
 
-
 # ----------------------------------------------------------------- helpers
 def load_env():
     env = BASE / ".env"
@@ -37,18 +36,14 @@ def load_env():
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
 
-
 def read(path, default):
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
-
 
 def write(path, data):
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
-
 def money(v, cur):
     return f"{SYMBOLS.get(cur, cur + ' ')}{v:,.0f}"
-
 
 def nice_time(s):
     """'2026-11-24 08:45' -> 'Tue 24 Nov, 08:45'"""
@@ -57,14 +52,11 @@ def nice_time(s):
     except ValueError:
         return s
 
-
 def nice_date(s):
     return datetime.strptime(s, "%Y-%m-%d").strftime("%d %b %Y")
 
-
 def hm(minutes):
     return f"{minutes // 60}h {minutes % 60:02d}m"
-
 
 def budget_ok(state):
     """Count SerpAPI searches per calendar month; refuse once the cap is reached."""
@@ -75,7 +67,6 @@ def budget_ok(state):
     state["_usage"] = u
     return u["count"] < MONTHLY_CAP
 
-
 def legs_of(trip):
     """Normalise a trip into a list of (origin, destination, date) legs."""
     if trip["type"] == "oneway":
@@ -84,10 +75,8 @@ def legs_of(trip):
         return [(trip["from"], trip["to"], trip["depart"]), (trip["to"], trip["from"], trip["return"])]
     return [tuple(l) for l in trip["legs"]]
 
-
 def describe(trip):
     return " | ".join(f"{o}->{d} {dt}" for o, d, dt in legs_of(trip)) + f" ({trip['type']}, economy, non-stop)"
-
 
 def load_trips():
     """Read trips.json; trips without an "id" get a stable one derived from their route/dates."""
@@ -95,7 +84,6 @@ def load_trips():
     for t in trips:
         t.setdefault("id", "-".join(f"{o}{d}{dt}" for o, d, dt in legs_of(t)))
     return trips
-
 
 # ----------------------------------------------------------------- search
 def search(trip, extra=None):
@@ -127,7 +115,6 @@ def search(trip, extra=None):
         raise RuntimeError(data["error"])
     return data
 
-
 def summarise(flight):
     segs = flight["flights"]
     return {
@@ -142,7 +129,6 @@ def summarise(flight):
         "token": flight.get("departure_token"),
     }
 
-
 def top_offers(trip, n=3):
     """Top-n cheapest non-stop economy offers (1 search credit)."""
     data = search(trip)
@@ -151,7 +137,6 @@ def top_offers(trip, n=3):
     flights.sort(key=lambda f: f["price"])
     url = data.get("search_metadata", {}).get("google_flights_url")
     return [summarise(f) for f in flights[:n]], url
-
 
 def return_leg(trip, token):
     """Return-flight details for the cheapest offer (1 extra search credit, only used on alerts)."""
@@ -164,11 +149,9 @@ def return_leg(trip, token):
         print("return-leg lookup failed:", e)
         return None
 
-
 # ----------------------------------------------------------------- teams card
 def txt(text, **kw):
     return {"type": "TextBlock", "text": text, "wrap": True, **kw}
-
 
 def flight_line(label, o):
     return txt(
@@ -176,7 +159,6 @@ def flight_line(label, o):
         f"**{o['airline']}** {o['numbers']}",
         spacing="Small", size="Small",
     )
-
 
 def build_card(trip, kind, offers, cur, old=None, ret=None, url=None):
     best = offers[0]
@@ -246,11 +228,9 @@ def build_card(trip, kind, offers, cur, old=None, ret=None, url=None):
     return {"type": "message", "attachments": [{
         "contentType": "application/vnd.microsoft.card.adaptive", "contentUrl": None, "content": content}]}
 
-
 def post(card):
     r = requests.post(os.environ["TEAMS_WEBHOOK_URL"], json=card, timeout=30)
     r.raise_for_status()
-
 
 # ----------------------------------------------------------------- commands
 def interval_hours(trip):
@@ -260,11 +240,9 @@ def interval_hours(trip):
     base = 3 if days > 14 else 2 if days > 3 else 1
     return 1 if NIGHT_START <= datetime.now().hour < NIGHT_END else base * 2
 
-
 def due(trip, state):
     last = state.get("_last", {}).get(trip["id"])
     return last is None or time.time() - last >= interval_hours(trip) * 3600 - 300
-
 
 def cmd_check(a):
     trips = load_trips()
@@ -308,7 +286,6 @@ def cmd_check(a):
         time.sleep(1)
     write(STATE_FILE, state)
 
-
 def cmd_test(_):
     trip = {"type": "return", "from": "SIN", "to": "BOM", "depart": "2026-11-24", "return": "2027-01-09"}
     mk = lambda p, a, n, d, e: {"price": p, "airline": a, "numbers": n, "dep": d, "arr": e, "from": "SIN", "to": "BOM", "duration": "5h 35m"}
@@ -316,7 +293,6 @@ def cmd_test(_):
               mk(33850, "Singapore Airlines", "SQ 424", "Tue 24 Nov, 08:15", "Tue 24 Nov, 11:20"),
               mk(34900, "Air India", "AI 2381", "Tue 24 Nov, 14:00", "Tue 24 Nov, 17:05")]
     post(build_card(trip, "sample", offers, "INR", old=33400, url="https://www.google.com/travel/flights"))
-
 
 def cmd_add(a):
     trips = read(TRIPS_FILE, [])
@@ -342,15 +318,12 @@ def cmd_add(a):
     write(TRIPS_FILE, trips)
     print(f"Added trip {tid}: {describe(trip)}")
 
-
 def cmd_list(_):
     for t in load_trips():
         print(t["id"], describe(t))
 
-
 def cmd_remove(a):
     write(TRIPS_FILE, [t for t in load_trips() if t["id"] != a.id])
-
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # ₹ / emoji safe on Windows consoles
@@ -371,7 +344,6 @@ def main():
     s.add_parser("test").set_defaults(f=cmd_test)
     a = p.parse_args()
     a.f(a)
-
 
 if __name__ == "__main__":
     main()
